@@ -1,30 +1,53 @@
-import fetch from 'node-fetch';
+import fetch from "node-fetch";
 
 export default async function handler(req, res) {
-  const { page = 1, per_page = 50 } = req.query;
+  const page = req.query.page || 1;
+  const per_page = req.query.per_page || 10;
   const DOOD_KEY = process.env.DOOD_KEY;
 
+  // Debug 1: Cek kalau API Key ada
   if (!DOOD_KEY) {
     return res.status(500).json({
-      error: 'API Key tidak ditemukan di environment variables Vercel',
-      hint: 'Pastikan nama variabelnya DOOD_KEY dan di-set di Production + Preview'
+      error: "API Key tidak ditemukan",
+      note: "Pastikan DOOD_KEY ada di Environment Variables Vercel (Production & Preview) lalu redeploy."
     });
   }
 
-  try {
-    const apiUrl = `https://doodapi.com/api/file/list?key=${DOOD_KEY}&page=${page}&per_page=${per_page}`;
-    const response = await fetch(apiUrl);
-    const text = await response.text(); // ambil raw text biar bisa lihat error aslinya
+  // Debug 2: Cek URL yang dipanggil
+  const apiUrl = `https://doodapi.com/api/file/list?key=${DOOD_KEY}&page=${page}&per_page=${per_page}`;
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
+  try {
+    const response = await fetch(apiUrl);
+
+    // Debug 3: Kalau response status bukan 200, return error
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: "Request ke Doodstream gagal",
+        status: response.status,
+        statusText: response.statusText,
+        url: apiUrl
+      });
     }
 
-    res.status(200).json(data);
-  } catch (error) {
-    res.status(500).json({ error: 'Gagal ambil data video', detail: error.message });
+    // Debug 4: Ambil data mentah buat lihat isinya
+    const text = await response.text();
+    let jsonData;
+    try {
+      jsonData = JSON.parse(text);
+    } catch (e) {
+      jsonData = { raw: text };
+    }
+
+    return res.status(200).json({
+      sourceUrl: apiUrl,
+      doodstreamResponse: jsonData
+    });
+
+  } catch (err) {
+    return res.status(500).json({
+      error: "Gagal fetch data",
+      detail: err.message,
+      attemptedUrl: apiUrl
+    });
   }
 }
