@@ -1,9 +1,10 @@
-// Final build: lazy thumbnails, infinite scroll (sentinel), modal player with Next/Prev
+// public/script.js
+// Lazy thumbnails, infinite scroll (sentinel), modal player with Next/Prev and "open in new tab"
 (() => {
-  const API = '/api/videos'; // proxy on Vercel that forwards to Doodstream
+  const API = '/api/videos'; // proxy endpoint
   const grid = document.getElementById('grid');
   const loader = document.getElementById('loader');
-  const sentinelEl = document.getElementById('sentinel');
+  const sentinel = document.getElementById('sentinel');
 
   // Modal
   const modal = document.getElementById('modal');
@@ -11,6 +12,7 @@
   const closeBtn = document.getElementById('closeBtn');
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
+  const openBtn = document.getElementById('openBtn');
   const modalTitle = document.getElementById('modalTitle');
 
   let page = 1;
@@ -35,6 +37,8 @@
   function showSkeletons(n=4){ for(let i=0;i<n;i++) grid.appendChild(makeSkeleton()); }
   function clearSkeletons(){ grid.querySelectorAll('.skeleton').forEach(s=>{ const p=s.closest('.card'); if(p) p.remove(); }); }
 
+  function escapeHtml(s){ return String(s || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;'); }
+
   function makeCard(v, idx){
     const card = document.createElement('article');
     card.className = 'card';
@@ -42,8 +46,10 @@
     const title = v.title || 'Untitled';
     const dur = v.length ? fmtTime(v.length) : '';
     card.setAttribute('data-idx', idx);
+
+    const dataSrcAttr = thumb ? `data-src="${escapeHtml(thumb)}"` : '';
     card.innerHTML = `
-      <img class="thumb lazy" data-src="${thumb}" alt="${escapeHtml(title)}">
+      <img class="thumb lazy skeleton" ${dataSrcAttr} alt="${escapeHtml(title)}">
       <div class="card-body">
         <h3 class="title">${escapeHtml(title)}</h3>
         <div class="meta">${dur}</div>
@@ -52,14 +58,19 @@
     return card;
   }
 
-  function escapeHtml(s){ return String(s || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;'); }
-
   const lazyObserver = new IntersectionObserver((entries, obs) => {
     for(const e of entries){
       if(e.isIntersecting){
         const img = e.target;
         const src = img.dataset.src;
-        if(src){ img.src = src; img.removeAttribute('data-src'); img.onload = ()=> img.classList.remove('skeleton'); img.onerror = ()=> { img.src=''; } }
+        if(src){
+          img.src = src;
+          img.removeAttribute('data-src');
+          img.onload = ()=> img.classList.remove('skeleton');
+          img.onerror = ()=> { img.classList.remove('skeleton'); img.src=''; };
+        } else {
+          img.classList.remove('skeleton');
+        }
         obs.unobserve(img);
       }
     }
@@ -67,12 +78,12 @@
 
   async function loadPage(){
     if(loading) return;
-    if(page > totalPages){ loader.textContent = 'Semua video dimuat.'; return; }
+    if(page > totalPages){ loader.textContent = 'Semua video dimuat.'; loader.style.display = 'block'; return; }
     loading = true;
     loader.style.display = 'block';
     showSkeletons(6);
     try {
-      const r = await fetch(`${API}?page=${page}`);
+      const r = await fetch(`${API}?page=${encodeURIComponent(page)}`);
       if(!r.ok) throw new Error('Server error ' + r.status);
       const j = await r.json();
       const files = j?.result?.files || j?.files || [];
@@ -87,8 +98,10 @@
         grid.appendChild(c);
       });
 
+      // Observe lazy images (only newly appended)
       grid.querySelectorAll('img.lazy').forEach(img => {
         if(img.dataset.src) lazyObserver.observe(img);
+        else img.classList.remove('skeleton');
       });
 
       if(files.length > 0) page++;
@@ -102,39 +115,48 @@
     }
   }
 
-  const sentinel = document.getElementById('sentinel');
   const sentinelObserver = new IntersectionObserver((entries) => {
     for(const e of entries) if(e.isIntersecting) loadPage();
   }, {rootMargin:'600px 0px'});
-  sentinelObserver.observe(sentinel);
+  if(sentinel) sentinelObserver.observe(sentinel);
 
   // Modal logic
   let current = -1;
+  function getVideoUrl(v){
+    if(!v) return '';
+    return v.file_code ? `https://doodstream.com/e/${v.file_code}` : (v.download_url || '');
+  }
   function openModal(idx){
     if(idx < 0 || idx >= videos.length) return;
     current = idx;
     const v = videos[idx];
     modalTitle.textContent = v.title || '—';
-    const url = v.file_code ? `https://doodstream.com/e/${v.file_code}` : (v.download_url || '');
+    const url = getVideoUrl(v);
     player.src = url;
+    player.setAttribute('data-current-url', url || '');
     modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
     updateNav();
     prefetch(current+1); prefetch(current-1);
   }
-  function closeModal(){ modal.classList.remove('show'); modal.setAttribute('aria-hidden','true'); player.src=''; current=-1; updateNav(); }
+  function closeModal(){ modal.classList.remove('show'); modal.setAttribute('aria-hidden','true'); player.src=''; player.removeAttribute('data-current-url'); current=-1; updateNav(); }
   function next(){ if(current < videos.length -1) openModal(current+1); else if(page <= totalPages && !loading) loadPage().then(()=>{ if(current < videos.length -1) openModal(current+1); }); }
   function prev(){ if(current > 0) openModal(current-1); }
   function updateNav(){ prevBtn.disabled = !(current > 0); nextBtn.disabled = !(current < videos.length -1 || page <= totalPages); }
-  function prefetch(i){ if(i>=0 && i<videos.length){ const v = videos[i]; const url = v.file_code ? `https://doodstream.com/e/${v.file_code}` : v.download_url; if(url) fetch(url, {mode:'no-cors'}).catch(()=>{}); } }
+  function prefetch(i){ if(i>=0 && i<videos.length){ const v = videos[i]; const url = getVideoUrl(v); if(url) fetch(url, {mode:'no-cors'}).catch(()=>{}); } }
 
-  // DOM refs after they exist
-  const prevBtn = document.getElementById('prevBtn');
-  const nextBtn = document.getElementById('nextBtn');
-  const closeBtnRef = document.getElementById('closeBtn');
+  // Open current video in new tab (useful if iframe blocked)
+  function openExternal(){
+    const url = player.getAttribute('data-current-url') || '';
+    if(!url) return;
+    window.open(url, '_blank', 'noopener');
+  }
 
-  closeBtnRef.addEventListener('click', closeModal);
+  // Event bindings
+  closeBtn.addEventListener('click', closeModal);
   prevBtn.addEventListener('click', prev);
   nextBtn.addEventListener('click', next);
+  openBtn.addEventListener('click', openExternal);
+
   window.addEventListener('keydown', (e) => {
     if(modal.classList.contains('show')){
       if(e.key === 'Escape') closeModal();
