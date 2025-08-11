@@ -1,48 +1,42 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <title>Daftar Video Doodstream</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
-    .video-card { background: white; border-radius: 10px; padding: 15px; margin: 15px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    iframe { width: 100%; height: 360px; border: none; border-radius: 8px; }
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Doodstream Video Feed</title>
+  <link rel="stylesheet" href="/public/style.css" />
 </head>
 <body>
+  <header class="topbar">
+    <div class="wrap">
+      <h1>Video Feed</h1>
+      <p class="subtitle">Auto-load • Click → play • Next / Prev</p>
+    </div>
+  </header>
 
-<h2>📺 Semua Video dari Doodstream</h2>
-<div id="video-list">Loading...</div>
+  <main class="wrap">
+    <div id="grid" class="grid" aria-live="polite"></div>
+    <div id="loader" class="loader">Memuat…</div>
+    <div id="sentinel" style="height:1px"></div>
+  </main>
 
-<script>
-fetch('/api/videos')
-  .then(res => res.json())
-  .then(data => {
-    const container = document.getElementById('video-list');
-    container.innerHTML = '';
+  <!-- Modal player -->
+  <div id="modal" class="modal" aria-hidden="true">
+    <div class="modal-box">
+      <div class="modal-toolbar">
+        <button id="prevBtn" class="btn">Prev</button>
+        <button id="nextBtn" class="btn">Next</button>
+        <div class="modal-title" id="modalTitle">—</div>
+        <button id="closeBtn" class="btn close">Close ✕</button>
+      </div>
+      <iframe id="player" class="player" allowfullscreen sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+  </div>
 
-    if (!data.result || data.result.length === 0) {
-      container.innerHTML = '<p>Belum ada video.</p>';
-      return;
-    }
+  <footer class="foot">
+    <div class="wrap">Powered by Doodstream API</div>
+  </footer>
 
-    data.result.forEach(video => {
-      const card = document.createElement('div');
-      card.className = 'video-card';
-      card.innerHTML = `
-        <h3>${video.title}</h3>
-        <iframe src="https://doodstream.com/e/${video.file_code}" allowfullscreen></iframe>
-        <p>Ukuran: ${(video.size / 1024 / 1024).toFixed(2)} MB</p>
-        <p>Upload: ${video.uploaded}</p>
-      `;
-      container.appendChild(card);
-    });
-  })
-  .catch(err => {
-    document.getElementById('video-list').innerHTML = '<p>Error ambil data.</p>';
-    console.error(err);
-  });
-</script>
-
+  <script src="/public/script.js" defer></script>
 </body>
 </html>
