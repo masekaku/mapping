@@ -1,174 +1,52 @@
-// public/script.js
-// Lazy thumbnails, infinite scroll (sentinel), modal player with Next/Prev and "open in new tab"
-(() => {
-  const API = '/api/videos'; // proxy endpoint
-  const grid = document.getElementById('grid');
-  const loader = document.getElementById('loader');
-  const sentinel = document.getElementById('sentinel');
+let page = 1;
+const grid = document.getElementById('grid');
+const loader = document.getElementById('loader');
+const sentinel = document.getElementById('sentinel');
 
-  // Modal
+async function loadVideos() {
+  loader.textContent = 'Memuat...';
+  const res = await fetch(`/api/videos?page=${page}&per_page=10`);
+  const data = await res.json();
+  
+  if (data?.result?.length) {
+    data.result.forEach(v => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <img src="${v.single_img}" class="thumb" alt="${v.title}" />
+        <div class="card-body">
+          <div class="title">${v.title}</div>
+          <div class="meta">${v.length}</div>
+        </div>
+      `;
+      card.onclick = () => openModal(v.embed_url, v.title);
+      grid.appendChild(card);
+    });
+    page++;
+    loader.textContent = '';
+  } else {
+    loader.textContent = 'Tidak ada lagi video.';
+  }
+}
+
+function openModal(url, title) {
   const modal = document.getElementById('modal');
   const player = document.getElementById('player');
-  const closeBtn = document.getElementById('closeBtn');
-  const prevBtn = document.getElementById('prevBtn');
-  const nextBtn = document.getElementById('nextBtn');
-  const openBtn = document.getElementById('openBtn');
   const modalTitle = document.getElementById('modalTitle');
+  
+  modal.classList.add('show');
+  player.src = url;
+  modalTitle.textContent = title;
+}
 
-  let page = 1;
-  let loading = false;
-  let totalPages = Infinity;
-  const videos = [];
+document.getElementById('closeBtn').onclick = () => {
+  document.getElementById('modal').classList.remove('show');
+  document.getElementById('player').src = '';
+};
 
-  function fmtTime(s){ s = Number(s)||0; const m=Math.floor(s/60); const sec=s%60; return `${m}:${String(sec).padStart(2,'0')}`; }
-
-  function makeSkeleton(){
-    const el = document.createElement('div'); el.className='card';
-    el.innerHTML = `<div class="thumb skeleton" style="height:130px"></div>
-      <div class="card-body" style="padding:10px">
-        <div style="flex:1">
-          <div class="skeleton" style="height:14px;width:70%;border-radius:6px;margin-bottom:8px"></div>
-          <div class="skeleton" style="height:12px;width:40%;border-radius:6px"></div>
-        </div>
-        <div style="width:60px"></div>
-      </div>`;
-    return el;
+const observer = new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting) {
+    loadVideos();
   }
-  function showSkeletons(n=4){ for(let i=0;i<n;i++) grid.appendChild(makeSkeleton()); }
-  function clearSkeletons(){ grid.querySelectorAll('.skeleton').forEach(s=>{ const p=s.closest('.card'); if(p) p.remove(); }); }
-
-  function escapeHtml(s){ return String(s || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;'); }
-
-  function makeCard(v, idx){
-    const card = document.createElement('article');
-    card.className = 'card';
-    const thumb = v.splash_img || v.single_img || '';
-    const title = v.title || 'Untitled';
-    const dur = v.length ? fmtTime(v.length) : '';
-    card.setAttribute('data-idx', idx);
-
-    const dataSrcAttr = thumb ? `data-src="${escapeHtml(thumb)}"` : '';
-    card.innerHTML = `
-      <img class="thumb lazy skeleton" ${dataSrcAttr} alt="${escapeHtml(title)}">
-      <div class="card-body">
-        <h3 class="title">${escapeHtml(title)}</h3>
-        <div class="meta">${dur}</div>
-      </div>`;
-    card.addEventListener('click', ()=> openModal(idx));
-    return card;
-  }
-
-  const lazyObserver = new IntersectionObserver((entries, obs) => {
-    for(const e of entries){
-      if(e.isIntersecting){
-        const img = e.target;
-        const src = img.dataset.src;
-        if(src){
-          img.src = src;
-          img.removeAttribute('data-src');
-          img.onload = ()=> img.classList.remove('skeleton');
-          img.onerror = ()=> { img.classList.remove('skeleton'); img.src=''; };
-        } else {
-          img.classList.remove('skeleton');
-        }
-        obs.unobserve(img);
-      }
-    }
-  }, {rootMargin:'200px 0px'});
-
-  async function loadPage(){
-    if(loading) return;
-    if(page > totalPages){ loader.textContent = 'Semua video dimuat.'; loader.style.display = 'block'; return; }
-    loading = true;
-    loader.style.display = 'block';
-    showSkeletons(6);
-    try {
-      const r = await fetch(`${API}?page=${encodeURIComponent(page)}`);
-      if(!r.ok) throw new Error('Server error ' + r.status);
-      const j = await r.json();
-      const files = j?.result?.files || j?.files || [];
-      if(j?.result?.total_pages) totalPages = Number(j.result.total_pages);
-      else if(j?.total_pages) totalPages = Number(j.total_pages);
-
-      clearSkeletons();
-      const start = videos.length;
-      files.forEach((f,i) => {
-        videos.push(f);
-        const c = makeCard(f, start + i);
-        grid.appendChild(c);
-      });
-
-      // Observe lazy images (only newly appended)
-      grid.querySelectorAll('img.lazy').forEach(img => {
-        if(img.dataset.src) lazyObserver.observe(img);
-        else img.classList.remove('skeleton');
-      });
-
-      if(files.length > 0) page++;
-      else { totalPages = page - 1; loader.textContent = 'Tidak ada lagi video.'; }
-    } catch (err) {
-      console.error('Load error', err);
-      loader.textContent = 'Gagal memuat. Refresh halaman.';
-    } finally {
-      loading = false;
-      if(page <= totalPages) loader.style.display = 'none';
-    }
-  }
-
-  const sentinelObserver = new IntersectionObserver((entries) => {
-    for(const e of entries) if(e.isIntersecting) loadPage();
-  }, {rootMargin:'600px 0px'});
-  if(sentinel) sentinelObserver.observe(sentinel);
-
-  // Modal logic
-  let current = -1;
-  function getVideoUrl(v){
-    if(!v) return '';
-    return v.file_code ? `https://doodstream.com/e/${v.file_code}` : (v.download_url || '');
-  }
-  function openModal(idx){
-    if(idx < 0 || idx >= videos.length) return;
-    current = idx;
-    const v = videos[idx];
-    modalTitle.textContent = v.title || '—';
-    const url = getVideoUrl(v);
-    player.src = url;
-    player.setAttribute('data-current-url', url || '');
-    modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
-    updateNav();
-    prefetch(current+1); prefetch(current-1);
-  }
-  function closeModal(){ modal.classList.remove('show'); modal.setAttribute('aria-hidden','true'); player.src=''; player.removeAttribute('data-current-url'); current=-1; updateNav(); }
-  function next(){ if(current < videos.length -1) openModal(current+1); else if(page <= totalPages && !loading) loadPage().then(()=>{ if(current < videos.length -1) openModal(current+1); }); }
-  function prev(){ if(current > 0) openModal(current-1); }
-  function updateNav(){ prevBtn.disabled = !(current > 0); nextBtn.disabled = !(current < videos.length -1 || page <= totalPages); }
-  function prefetch(i){ if(i>=0 && i<videos.length){ const v = videos[i]; const url = getVideoUrl(v); if(url) fetch(url, {mode:'no-cors'}).catch(()=>{}); } }
-
-  // Open current video in new tab (useful if iframe blocked)
-  function openExternal(){
-    const url = player.getAttribute('data-current-url') || '';
-    if(!url) return;
-    window.open(url, '_blank', 'noopener');
-  }
-
-  // Event bindings
-  closeBtn.addEventListener('click', closeModal);
-  prevBtn.addEventListener('click', prev);
-  nextBtn.addEventListener('click', next);
-  openBtn.addEventListener('click', openExternal);
-
-  window.addEventListener('keydown', (e) => {
-    if(modal.classList.contains('show')){
-      if(e.key === 'Escape') closeModal();
-      if(e.key === 'ArrowRight') next();
-      if(e.key === 'ArrowLeft') prev();
-    }
-  });
-  modal.addEventListener('click', (ev) => { if(ev.target === modal) closeModal(); });
-
-  // Start
-  loadPage();
-
-  // debug helper
-  window.__VIDEO_FEED = { videos, loadPage, state: ()=>({page,loading,totalPages,loaded:videos.length}) };
-})();
+});
+observer.observe(sentinel);
