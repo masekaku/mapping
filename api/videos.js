@@ -1,26 +1,21 @@
-import fetch from "node-fetch";
-
 export default async function handler(req, res) {
-  const DOOD_KEY = process.env.DOOD_KEY;
-  if (!DOOD_KEY) {
-    return res.status(500).json({
-      error: "API Key tidak ditemukan",
-      hint: "Set environment variable DOOD_KEY di Vercel Settings"
-    });
-  }
-
-  const page = req.query.page || 1;
-  const per_page = req.query.per_page || 10;
-  const apiUrl = `https://doodapi.com/api/file/list?key=${DOOD_KEY}&page=${page}&per_page=${per_page}`;
-
   try {
-    const r = await fetch(apiUrl);
-    if (!r.ok) {
-      return res.status(r.status).json({ error: "Request ke Doodstream gagal", statusText: r.statusText });
+    const apiKey = process.env.DOOD_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'DOOD_API_KEY not set in environment' });
+
+    const page = req.query.page || 1;
+    const per_page = req.query.per_page || 10;
+    const doodURL = `https://doodapi.com/api/file/list?key=${apiKey}&page=${page}&per_page=${per_page}`;
+
+    const response = await fetch(doodURL);
+    if (!response.ok) {
+      const txt = await response.text().catch(()=>null);
+      return res.status(response.status).json({ error: 'Doodstream API error', statusText: response.statusText, body: txt });
     }
-    const data = await r.json();
-    res.status(200).json(data);
-  } catch (err) {
-    res.status(500).json({ error: "Gagal ambil data", detail: err.message });
+    const data = await response.json();
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error('API proxy error:', error);
+    return res.status(500).json({ error: error.message || 'Unknown error' });
   }
 }
