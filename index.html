@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Doodstream Video Feed</title>
-  <link rel="stylesheet" href="/public/style.css" />
+  <!-- public files are served from root (/style.css, /script.js) -->
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <header class="topbar">
@@ -22,14 +23,17 @@
 
   <!-- Modal player -->
   <div id="modal" class="modal" aria-hidden="true">
-    <div class="modal-box">
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modal-toolbar">
         <button id="prevBtn" class="btn">Prev</button>
         <button id="nextBtn" class="btn">Next</button>
         <div class="modal-title" id="modalTitle">—</div>
-        <button id="closeBtn" class="btn close">Close ✕</button>
+        <div style="margin-left:8px">
+          <button id="openBtn" class="btn">Open in new tab</button>
+        </div>
+        <button id="closeBtn" class="btn close" aria-label="Close player">Close ✕</button>
       </div>
-      <iframe id="player" class="player" allowfullscreen sandbox="allow-scripts allow-same-origin"></iframe>
+      <iframe id="player" class="player" title="Doodstream player" allowfullscreen sandbox="allow-scripts allow-same-origin"></iframe>
     </div>
   </div>
 
@@ -37,6 +41,6 @@
     <div class="wrap">Powered by Doodstream API</div>
   </footer>
 
-  <script src="/public/script.js" defer></script>
+  <script src="/script.js" defer></script>
 </body>
 </html>
