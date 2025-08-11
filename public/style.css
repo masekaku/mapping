@@ -1,0 +1,43 @@
+:root{
+  --bg:#0b0b0d; --card:#111214; --muted:#98a0a6; --accent:#ffcc00;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,var(--bg),#050507);color:#eaeef2}
+.wrap{max-width:1200px;margin:0 auto;padding:16px}
+.topbar{background:rgba(255,255,255,0.02);border-bottom:1px solid rgba(255,255,255,0.03)}
+.topbar .wrap{display:flex;align-items:center;gap:12px}
+h1{font-size:18px;margin:10px 0}
+.subtitle{margin:0;color:var(--muted);font-size:13px}
+
+/* Grid */
+.grid{display:grid;grid-template-columns: repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:14px}
+
+/* Card */
+.card{background:linear-gradient(180deg,var(--card),#0f0f11);border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,0.6);transition:transform .14s ease;display:flex;flex-direction:column}
+.card:hover{transform:translateY(-6px)}
+.thumb{width:100%;height:130px;object-fit:cover;background:#0c0c0d;display:block}
+.card-body{padding:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.title{font-size:14px;font-weight:600;margin:0;color:#fff;flex:1}
+.meta{font-size:12px;color:var(--muted);white-space:nowrap}
+
+/* Skeleton */
+.skeleton{animation:shimmer 1.1s linear infinite;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.05), rgba(255,255,255,0.02));background-size:200% 100%}
+@keyframes shimmer{0%{background-position:-150px 0}100%{background-position:150px 0}}
+
+/* Loader */
+.loader{text-align:center;color:var(--muted);padding:14px}
+
+/* Modal */
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);z-index:9999}
+.modal.show{display:flex}
+.modal-box{width:min(1100px,96%);background:#000;border-radius:10px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.7)}
+.modal-toolbar{display:flex;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,0.02);border-bottom:1px solid rgba(255,255,255,0.03)}
+.btn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#fff;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px}
+.btn.close{margin-left:auto}
+.player{width:100%;height:68vh;border:0;background:#000;display:block}
+
+/* Footer */
+.foot{padding:14px 0;color:var(--muted);text-align:center;margin-top:18px}
+
+/* Responsive */
+@media (max-width:640px){ .thumb{height:120px} .player{height:56vh} .modal-toolbar{flex-wrap:wrap;gap:8px} }
