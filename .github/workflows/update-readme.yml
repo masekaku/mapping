@@ -1,0 +1,38 @@
+name: Update README with Latest Repos
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # update setiap hari jam 00:00 UTC
+  workflow_dispatch:
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Fetch latest repositories
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const username = "masekaku";
+            const res = await github.repos.listForUser({
+              username,
+              sort: "updated",
+              direction: "desc",
+              per_page: 5
+            });
+            let output = res.data.map((repo, i) => `${i+1}. [${repo.name}](${repo.html_url}) - ${repo.description || "No description"}`).join("\n");
+            const fs = require("fs");
+            let readme = fs.readFileSync("README.md", "utf-8");
+            readme = readme.replace(/(<!-- START_SECTION:activity -->)[\\s\\S]*(<!-- END_SECTION:activity -->)/, `$1\n${output}\n$2`);
+            fs.writeFileSync("README.md", readme);
+
+      - name: Commit changes
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add README.md
+          git commit -m "Update live projects"
+          git push
