@@ -1,6 +1,6 @@
-# Doodstream Video Feed
+# Terbit21 Video Feed
 
-Aplikasi web sederhana menampilkan feed video dari Doodstream API dengan:
+Aplikasi web sederhana menampilkan feed video dari Terbit21 API dengan:
 - Infinite scroll
 - Lazy thumbnail loading
 - Modal player dengan Next / Prev + Open in new tab (fallback)
@@ -10,3 +10,4 @@ Aplikasi web sederhana menampilkan feed video dari Doodstream API dengan:
 2. Install
    ```bash
    npm install
+vvdydxvv
